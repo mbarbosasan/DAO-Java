@@ -77,17 +77,46 @@ public class SellerDAOJDBC implements SellerDAO {
         return obj;
     }
 
-    private Department instantiateDepartment(ResultSet rs) throws SQLException {
-        Department dep = new Department();
-        dep.setId(rs.getInt("DepartmentId"));
-        dep.setName(rs.getString("DepName"));
-        return dep;
-    }
+        private Department instantiateDepartment(ResultSet rs) throws SQLException {
+            Department dep = new Department();
+            dep.setId(rs.getInt("DepartmentId"));
+            dep.setName(rs.getString("DepName"));
+            return dep;
+        }
 
-    @Override
-    public List<Seller> findAll() {
-        return null;
-    }
+        @Override
+        public List<Seller> findAll() {
+            PreparedStatement st = null;
+            ResultSet rs = null;
+
+            try {
+                st = conn.prepareStatement("SELECT seller.*, department.Name as DepName\n" +
+                        "FROM seller INNER JOIN department\n" +
+                        "ON seller.DepartmentId = department.Id\n" +
+                        "ORDER BY Name");
+
+                rs = st.executeQuery();
+                List<Seller> list = new ArrayList<>();
+                Map<Integer, Department> map = new HashMap<>();
+
+                while (rs.next()) {
+                    Department dep = map.get(rs.getInt("DepartmentId"));
+                    if (dep == null) {
+                        dep = instantiateDepartment(rs);
+                        map.put(rs.getInt("DepartmentId"), dep);
+                    }
+                    Seller obj = instantiateSeller(rs, dep);
+                    list.add(obj);
+                }
+                return list;
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }  finally {
+                DB.closeStatement(st);
+                DB.closeResultSet(rs);
+            }
+            return null;
+        }
 
     @Override
     public List<Seller> findByDepartment(Department department) {
@@ -118,6 +147,9 @@ public class SellerDAOJDBC implements SellerDAO {
             return list;
         } catch (SQLException e) {
             e.printStackTrace();
+        }  finally {
+            DB.closeStatement(st);
+            DB.closeResultSet(rs);
         }
         return null;
     }
